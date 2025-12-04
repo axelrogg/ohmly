@@ -1,6 +1,6 @@
 import math
 import unittest
-from src.voltpy import CatenaryState, CatenaryApparentLoad, Conductor, MechAnalysis, MechAnalysisZone, SagTensionAnalyzer, MechAnalysisHypothesis
+from src.ohmly import CatenaryState, CatenaryApparentLoad, Conductor, MechAnalysis, MechAnalysisZone, SagTensionAnalyzer, MechAnalysisHypothesis
 
 
 class TestMechAnalysis(unittest.TestCase):

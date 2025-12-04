@@ -1,5 +1,5 @@
 import unittest
-from src.voltpy.utils import find_root
+from src.ohmly.utils import find_root
 
 
 class TestUtils(unittest.TestCase):

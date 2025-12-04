@@ -1,7 +1,7 @@
 import unittest
 import sqlite3
-from src.voltpy import Conductor, ConductorRepository
-from src.voltpy.conductor import GRAVITY
+from src.ohmly import Conductor, ConductorRepository
+from src.ohmly.conductor import GRAVITY
 
 
 class TestConductorRepository(unittest.TestCase):

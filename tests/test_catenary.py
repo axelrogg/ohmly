@@ -1,6 +1,6 @@
 import math
 import unittest
-from src.voltpy import CatenaryApparentLoad, CatenaryModel, CatenaryState, Conductor
+from src.ohmly import CatenaryApparentLoad, CatenaryModel, CatenaryState, Conductor
 
 
 class TestCatenaryApparentLoad(unittest.TestCase):
