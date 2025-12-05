@@ -1,6 +1,6 @@
 [project]
 name = "ohmly"
-version = "0.1.0"
+version = "0.0.3"
 description = "An electrical and mechanical analysis tool of overhead conductors."
 authors = [
     {name = "Axel Rodríguez Chang", email = "axelrogg@icloud.com"}
@@ -17,6 +17,7 @@ Issues = "https://github.com/axelrogg/ohmly/issues"
 
 [tool.poetry]
 packages = [{include = "ohmly", from = "src"}]
+include = ["src/ohmly/conductor_db"]
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

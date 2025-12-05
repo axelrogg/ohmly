@@ -19,6 +19,7 @@ Constants:
 """
 
 
+import importlib.resources
 import sqlite3
 from dataclasses import dataclass
 
@@ -95,15 +96,28 @@ class Conductor:
 class ConductorRepository:
     """Repository for retrieving conductor data from a SQLite database."""
 
-    def __init__(self, db_path: str = "src/voltpy/conductor_db") -> None:
-        """Initialize the repository with a SQLite database path.
-
-        Args:
-            db_path (str): Path to the conductor database.
-        """
-        self.conn = sqlite3.connect(db_path)
+    def __init__(self) -> None:
+        """Initialize the repository."""
+        self.conn = self._get_conn()
         self.conn.row_factory = sqlite3.Row
         self.table = "conductors"
+
+    def _get_conn(self) -> sqlite3.Connection:
+        """Return a SQLite connection to the packaged `conductor_db` file.
+
+        This loads the database using `importlib.resources`, which ensures that the
+        file can be accessed correctly whether the package is installed from source,
+        a wheel, or any other distribution format. The database is opened in
+        read-only mode with respect to the package installation directory; any write
+        operations may fail if the environment does not permit modifying packaged
+        files.
+
+        Returns:
+            sqlite3.Connection: An active SQLite database connection.
+        """
+
+        with importlib.resources.path("ohmly", "conductor_db") as dbpath:
+            return sqlite3.connect(dbpath)
 
     def get(self, designation: str | None = None, legacy_code: str | None = None) -> Conductor:
         """Retrieve a conductor by designation or legacy code.
