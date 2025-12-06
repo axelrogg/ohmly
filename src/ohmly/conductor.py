@@ -92,6 +92,9 @@ class Conductor:
         """
         self._unit_weight_override = value
 
+    def __str__(self) -> str:
+        return f"Conductor(al_area: {self.al_area} mm², steel_area: {self.steel_area} mm², total_area: {self.total_area} mm², al_strands: {self.al_strands}, steel_strands: {self.steel_strands}, core_diameter: {self.core_diameter} mm, overall_diameter: {self.overall_diameter} mm, mass: {self.mass} kg/km, weight: {self.unit_weight} daN/m, rated_strength: {self.rated_strength} daN, resistance_dc: {self.resistance_dc} Ω/km, elastic_modulus: {self.elastic_modulus} daN/mm², thermal_exp_factor: {self.thermal_exp_factor} 1/ºC)"
+
 
 class ConductorRepository:
     """Repository for retrieving conductor data from a SQLite database."""
