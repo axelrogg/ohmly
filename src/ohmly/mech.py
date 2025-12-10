@@ -15,6 +15,9 @@ Classes:
     MechAnalysisHypothesis: Represents a single scenario for analysis.
     SagTensionAnalyzer: Generates sag-tension tables and finds controlling hypotheses.
 
+Custom types:
+    SagTensionTableRow(TypedDict): Represents a row in a sag-tension table.
+
 Notes:
     - Tensions are in daN, weights in daN/m.
     - The controlling hypothesis is the one whose calculated tension does not exceed allowable limits in any scenario.
@@ -24,9 +27,23 @@ Notes:
 import math
 from dataclasses import dataclass
 from enum import Enum
+from typing import TypedDict
 
 from .conductor import Conductor
 from .catenary import CatenaryModel, CatenaryState, CatenaryApparentLoad
+
+
+class SagTensionTableRow(TypedDict):
+    """Represents a row in a sag-tension table.
+
+    Attributes:
+        span (float): The span length in meters.
+        results (list[float]): A list of calculated tensions (in daN) for each
+            hypothesis in the analysis.
+    """
+
+    span: float
+    results: list[float]
 
 
 class MechAnalysisZone(Enum):
@@ -217,17 +234,18 @@ class SagTensionAnalyzer:
 
         return None
 
-    def tbl(self, spans: list[float] | list[int]):
+    def tbl(self, spans: list[float] | list[int]) -> list[SagTensionTableRow] | None:
         """Generate a sag-tension table for a list of spans.
 
         Args:
             spans: List of spans to compute (m).
 
         Returns:
-            list[dict]: Each dict contains the span and a list of resulting tensions
-            for each hypothesis.
+            list[SagTensionTableRow] | None: Each dict contains the span and a list of resulting tensions
+            for each hypothesis or None if no controlling state was found.
         """
-        tbl = []
+
+        tbl: list[SagTensionTableRow] = []
 
         for span in spans:
             controller = self.find_controlling_state(span)
@@ -237,7 +255,7 @@ class SagTensionAnalyzer:
             base_overload = self.mech.overload(wind_speed=controller.wind_speed, with_ice=controller.with_ice)
             base_state = CatenaryState(temp=controller.temp, weight=base_overload.resultant, tense=self.mech.conductor.rated_strength * controller.rts_factor)
 
-            row = {"span": span, "results": []}
+            row: SagTensionTableRow = {"span": span, "results": []}
 
             for hypo in self.hypotheses:
                 load = self.mech.overload(wind_speed=hypo.wind_speed, with_ice=hypo.with_ice)
