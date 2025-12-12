@@ -1,30 +1,54 @@
 """
 Module `conductor`
 
-Provides classes and utilities for modeling electrical conductors 
-and accessing conductor data from a SQLite database.
+Provides classes and utilities for modeling electrical conductors and accessing
+conductor data from a SQLite database.
 
 This module includes:
 
-- `Conductor`: A dataclass representing an overhead line conductor, 
-  with mechanical, geometric, and electrical properties. Includes 
-  a computed `unit_weight` property with optional override.
+-   `Conductor`: A dataclass representing an overhead line conductor, with
+    mechanical, geometric, and electrical properties. Includes a computed
+    `unit_weight` property with optional override.
 
-- `ConductorRepository`: A repository class to retrieve conductor 
-  information from a SQLite database by designation or legacy code.
+-   `ConductorRepository`: A repository class to retrieve conductor information
+    from a SQLite database by designation or legacy code.
 
 Constants:
-    GRAVITY (float): Acceleration due to gravity, used for weight 
-                     calculations (m/s²).
+-   GRAVITY (float): Acceleration due to gravity, used for weight
+    calculations (m/s²).
+
+-   CONDUCTOR_ATTRIBS_UNITS (dict[str, str]): Mapping of conductor attribute
+    names to their respective units.
 """
 
 
 import importlib.resources
 import sqlite3
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
+
+from rich.console import Console
+from rich.table import Table
+from rich import box
 
 
 GRAVITY = 9.80665
+
+
+CONDUCTOR_ATTRIBS_UNITS = {
+    "al_area": "mm²",
+    "steel_area": "mm²",
+    "total_area": "mm²",
+    "al_strands": "",
+    "steel_strands": "",
+    "core_diameter": "mm",
+    "overall_diameter": "mm",
+    "mass": "kg/km",
+    "rated_strength": "daN",
+    "resistance_dc": "Ω/km",
+    "elastic_modulus": "kN/mm²",
+    "thermal_exp_factor": "1/°C",
+    "unit_weight": "daN/m",
+}
 
 
 @dataclass
@@ -76,7 +100,7 @@ class Conductor:
     
     @property
     def unit_weight(self) -> float:
-        """Compute or return the conductor's unit weight (daN/m).
+        """Returns the conductor's unit weight (daN/m).
 
         Returns:
             float: Unit weight of the conductor including any override.
@@ -87,7 +111,7 @@ class Conductor:
 
     @unit_weight.setter
     def unit_weight(self, value: float | None) -> None:
-        """Optionally override the conductor unit weight.
+        """Overrides or reset the conductor's unit weight.
 
         Args:
             value (float | None): New unit weight in daN/m or None to reset.
@@ -95,6 +119,46 @@ class Conductor:
         self._unit_weight_override = value
 
     def __str__(self) -> str:
+        """Returns a human-readable table of the conductor's attributes and values.
+
+        The table uses Rich for pretty formatting, including units from
+        `CONDUCTOR_ATTRIBS_UNITS`.
+    
+        Returns:
+            str: Formatted string representing the conductor.
+        """
+
+        data = asdict(self)
+
+        table = Table(box=box.SIMPLE_HEAVY)
+        table.add_column("Attribute", justify="left")
+        table.add_column("Unit", justify="right")
+        table.add_column("Value", justify="right")
+
+        # replace internal override name with human label
+        data.pop("_unit_weight_override")
+        data["unit_weight"] = self.unit_weight
+
+        for key, value in data.items():
+            unit = CONDUCTOR_ATTRIBS_UNITS.get(key, "-")
+            if key == "unit_weight":
+                table.add_row(key, unit if unit else "-", f"{value:.4f}")
+                continue
+            table.add_row(key, unit if unit else "-", f"{value}")
+
+        console = Console()
+        with console.capture() as capture:
+            console.print(table)
+        return capture.get()
+
+    def __repr__(self) -> str:
+        """Returns a compact, unambiguous string representation of the conductor.
+
+        Includes the most relevant mechanical, geometric, and electrical properties.
+        
+        Returns:
+            str: Concise string representation of the conductor.
+        """
         return f"Conductor(al_area: {self.al_area} mm², steel_area: {self.steel_area} mm², total_area: {self.total_area} mm², al_strands: {self.al_strands}, steel_strands: {self.steel_strands}, core_diameter: {self.core_diameter} mm, overall_diameter: {self.overall_diameter} mm, mass: {self.mass} kg/km, weight: {self.unit_weight} daN/m, rated_strength: {self.rated_strength} daN, resistance_dc: {self.resistance_dc} Ω/km, elastic_modulus: {self.elastic_modulus} daN/mm², thermal_exp_factor: {self.thermal_exp_factor} 1/ºC)"
 
 
@@ -102,13 +166,13 @@ class ConductorRepository:
     """Repository for retrieving conductor data from a SQLite database."""
 
     def __init__(self) -> None:
-        """Initialize the repository."""
+        """Initializes the repository."""
         self.conn = self._get_conn()
         self.conn.row_factory = sqlite3.Row
         self.table = "conductors"
 
     def _get_conn(self) -> sqlite3.Connection:
-        """Return a SQLite connection to the packaged `conductor_db` file.
+        """Returns a SQLite connection to the packaged `conductor_db` file.
 
         This loads the database using `importlib.resources`, which ensures that the
         file can be accessed correctly whether the package is installed from source,
@@ -125,7 +189,7 @@ class ConductorRepository:
             return sqlite3.connect(dbpath)
 
     def get(self, designation: str | None = None, legacy_code: str | None = None) -> Conductor:
-        """Retrieve a conductor by designation or legacy code.
+        """Retrieves a conductor by designation or legacy code.
 
         Args:
             designation (str | None): Official designation of the conductor.

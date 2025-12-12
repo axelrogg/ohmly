@@ -1,35 +1,36 @@
 """
 Module `mech`
 
-Provides mechanical analysis tools for overhead conductors, including:
+Mechanical analysis tools for overhead conductors, including:
 
-- Zone-based conductor properties (altitude-dependent ice loads)
-- Every-Day Stress (EDS) and Cold-Hour Stress (CHS) calculation
-- Apparent load computation under wind and ice
-- Ruling span calculation
-- Hypothesis-based sag-tension analysis
+-   Zone-based conductor properties (altitude-dependent ice loads)
+-   Every-Day Stress (EDS) and Cold-Hour Stress (CHS) calculations
+-   Apparent load computation under wind and ice
+-   Ruling span calculation
+-   Sag-tension analysis based on hypotheses
 
 Classes:
-    MechAnalysisZone: Altitude-based mechanical analysis zone.
-    MechAnalysis: Performs mechanical analysis of a conductor for a given zone.
-    MechAnalysisHypothesis: Represents a single scenario for analysis.
-    SagTensionAnalyzer: Generates sag-tension tables and finds controlling hypotheses.
-
-Custom types:
-    SagTensionTableRow(TypedDict): Represents a row in a sag-tension table.
+-   MechAnalysisZone: Altitude-based mechanical analysis zone.
+-   MechAnalysisHypothesis: Represents a single scenario for mechanical analysis.
+-   MechAnalysis: Performs mechanical analysis for a conductor in a given zone.
+-   SagTensionAnalyzer: Generates sag-tension tables and identifies controlling hypotheses.
+-   SagTensionTable: Stores results of sag-tension analysis.
+-   SagTensionTableRow(TypedDict): Represents a row in a sag-tension table.
 
 Notes:
-    - Tensions are in daN, weights in daN/m.
-    - The controlling hypothesis is the one whose calculated tension does not exceed allowable limits in any scenario.
+-   Tensions are in daN, weights in daN/m.
+-   The controlling hypothesis is the scenario whose calculated tension does not
+    exceed allowable limits in any evaluated scenario.
 """
 
-
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import TypedDict
 
-from tabulate import tabulate
+from rich.table import Table
+from rich.console import Console
+from rich import box
 
 from .conductor import Conductor
 from .catenary import CatenaryModel, CatenaryState, CatenaryApparentLoad
@@ -53,7 +54,16 @@ class MechAnalysisZone(Enum):
 
 @dataclass
 class MechAnalysisHypothesis:
-    """Represents a single hypothesis (scenario) for mechanical analysis."""
+    """Represents a single hypothesis (scenario) for mechanical analysis.
+
+    Attributes:
+        temp (float): Conductor temperature (°C).
+        rts_factor (float): Fraction of conductor rated strength to use.
+        zone (MechAnalysisZone | None): Optional mechanical analysis zone.
+        wind_speed (float): Wind speed in km/h.
+        with_ice (bool): Whether ice is present.
+        name (str | None): Optional descriptive name for the hypothesis.
+    """
 
     temp: float
     rts_factor: float
@@ -67,33 +77,62 @@ class SagTensionTableRow(TypedDict):
     """Represents a row in a sag-tension table.
 
     Attributes:
-        span (float): The span length in meters.
-        results (list[float]): A list of calculated tensions (in daN) for each
-            hypothesis in the analysis.
+        span (float): Span length between supports (m).
+        results (list[tuple[float, float]]): Calculated tensions (daN) and
+            corresponding percentage of rated strength for each hypothesis.
     """
 
     span: float
-    results: list[float]
+    results: list[tuple[float, float]]
 
 
 @dataclass
 class SagTensionTable:
-    hypos: list[MechAnalysisHypothesis] = []
-    rows: list[SagTensionTableRow] = []
+    """Stores sag-tension analysis results for multiple hypotheses and spans.
+
+    Attributes:
+        hypos (list[MechAnalysisHypothesis]): List of evaluated hypotheses.
+        rows (list[SagTensionTableRow]): Computed results per span.
+    """
+
+    hypos: list[MechAnalysisHypothesis] = field(default_factory=list)
+    rows: list[SagTensionTableRow] = field(default_factory=list)
 
     def __str__(self) -> str:
-        tbl_data = {
-            "Span": [row["span"] for row in self.rows],
-            **{
-                hypo.name: [row["results"][i] for row in self.rows]
-                for i, hypo in enumerate(self.hypos)
-            }
-        }
-        return tabulate(tbl_data, headers="index", tablefmt="github")
+        table = Table(box=box.SIMPLE_HEAVY)
+
+        table.add_column("Span", justify="right")
+
+        for hypo in self.hypos:
+            col_name = f"{hypo.name}\nT (daN), RTS (%)" if hypo.name else "T (daN), RTS (%)"
+            table.add_column(col_name, justify="center")
+
+        for row in self.rows:
+            span = str(row["span"])
+
+            # The first tuple value is the tense and the second is the percentage of rts
+            values = [
+                f"{row['results'][i][0]:.4f}, {row['results'][i][1]:.4f}"
+                for i in range(len(self.hypos))
+            ]
+            
+            table.add_row(span, *values)
+
+        console = Console()
+        with console.capture() as capture:
+            console.print(table)
+        return capture.get()
+
+    def __repr__(self) -> str:
+        return f"SagTensionTable(hypos={self.hypos}, rows={self.rows})"
 
 
 class MechAnalysis:
-    """Performs mechanical analysis of a conductor for a given zone."""
+    """Performs mechanical analysis of a conductor for a given zone.
+
+    Provides methods for Every-Day Stress (EDS), Cold-Hour Stress (CHS),
+    overload calculations, ruling span, and sag-tension tables.
+    """
 
     def __init__(self, conductor: Conductor, zone: MechAnalysisZone):
         """Initializes the mechanical analysis.
@@ -109,10 +148,13 @@ class MechAnalysis:
     
     @property
     def ice_weight(self) -> float:
-        """Returns ice load per unit length (daN/m) based on the zone.
+        """Compute ice load per unit length (daN/m) based on the analysis zone.
 
         Raises:
-            ValueError: If ice is undefined for the zone.
+            ValueError: If ice is undefined for the zone (zone A).
+
+        Returns:
+            float: Ice weight per meter of conductor.
         """
 
         if self.zone == MechAnalysisZone.A:
@@ -203,6 +245,23 @@ class MechAnalysis:
         
         return math.sqrt(sum(pow(span, 3) for span in spans) / sum(spans))
 
+    def stt(
+            self,
+            hypos: list[MechAnalysisHypothesis],
+            spans: list[float] | list[int]
+    ) -> SagTensionTable | None:
+        """Generate a sag-tension table for a set of spans and hypotheses.
+
+        Args:
+            hypos (list[MechAnalysisHypothesis]): Hypotheses to evaluate.
+            spans (list[float] | list[int]): List of spans (m).
+
+        Returns:
+            SagTensionTable | None: Table with sag-tension results, or None if no controlling state is found.
+        """
+        sta = SagTensionAnalyzer(self, hypos)
+        return sta.tbl(spans)
+
 
 class SagTensionAnalyzer:
     """Generates sag-tension tables and finds controlling mechanical states."""
@@ -256,12 +315,13 @@ class SagTensionAnalyzer:
     def tbl(self, spans: list[float] | list[int]) -> SagTensionTable | None:
         """Generate a sag-tension table for a list of spans.
 
+        Computes tension and RTS (%) for each hypothesis and span.
+
         Args:
-            spans: List of spans to compute (m).
+            spans (list[float] | list[int]): List of spans to compute (m).
 
         Returns:
-            list[SagTensionTableRow] | None: Each dict contains the span and a list of resulting tensions
-            for each hypothesis or None if no controlling state was found.
+            SagTensionTable | None: Table of results or None if no controlling state is found.
         """
 
         tbl = SagTensionTable(hypos=self.hypotheses)
@@ -280,7 +340,9 @@ class SagTensionAnalyzer:
                 load = self.mech.overload(wind_speed=hypo.wind_speed, with_ice=hypo.with_ice)
                 state1 = self.mech.cat.cos(state0=base_state, temp1=hypo.temp, weight1=load.resultant, span=span)
 
-                row["results"].append(state1.tense)
+                
+                row["results"].append((state1.tense, state1.tense / self.mech.conductor.rated_strength * 100))
+
 
             tbl.rows.append(row)
 
