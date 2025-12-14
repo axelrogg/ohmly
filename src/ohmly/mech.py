@@ -191,15 +191,26 @@ class MechAnalysis:
 
         return CatenaryState(temp, tense = rts_factor * self.conductor.rated_strength, weight=self.conductor.unit_weight)
 
-    def overload(self, wind_speed: float = 0., with_ice: bool = False):
-        """Calculates apparent load due to wind and/or ice.
+    def overload(self, wind_speed: float = 0.0, with_ice: bool = False, pressure_factor: float = 1.0):
+        """Compute the apparent load on the conductor due to wind and ice.
+
+        Calculates the horizontal wind load and vertical permanent load acting on
+        the conductor, following ITC-LAT 07 assumptions. Wind pressure depends on
+        wind speed and effective conductor diameter, which may increase due to ice
+        accretion. An optional pressure factor allows scaling the wind pressure
+        (e.g. for safety factors or special load cases).
 
         Args:
-            wind_speed: Wind speed in km/h.
-            with_ice: Whether ice is present.
+            wind_speed (float): Wind speed in km/h.
+            with_ice (bool): Whether ice is present.
+            pressure_factor (float): Multiplicative factor applied to the wind
+            pressure. Use values > 1.0 to increase wind load (e.g. safety
+            margins or exceptional conditions).
 
         Returns:
-            CatenaryApparentLoad: Combined wind and vertical load on the conductor.
+            CatenaryApparentLoad: Resulting apparent load, containing:
+            - horizontal wind load (daN/m)
+            - vertical (weight + ice) load (daN/m)
         """
 
         wind_velocity_factor = (wind_speed / 120) ** 2  # this is in daN/m^2
@@ -214,12 +225,12 @@ class MechAnalysis:
         if total_diameter > 16 * 1e-3:
             wind_pressure = 50 * wind_velocity_factor
 
-        wind_load = wind_pressure * total_diameter
-        permanent_load = self.conductor.unit_weight 
+        wind_load = wind_pressure * pressure_factor * total_diameter
+        vertical_load = self.conductor.unit_weight 
         if with_ice:
-            permanent_load += self.ice_weight
+            vertical_load += self.ice_weight
 
-        return CatenaryApparentLoad(wind_load, permanent_load)
+        return CatenaryApparentLoad(wind_load, vertical_load)
 
     def overload_factor(self, apparent_load: CatenaryApparentLoad) -> float:
         """Returns the ratio of resultant load to the conductor's weight.
@@ -339,10 +350,8 @@ class SagTensionAnalyzer:
             for hypo in self.hypotheses:
                 load = self.mech.overload(wind_speed=hypo.wind_speed, with_ice=hypo.with_ice)
                 state1 = self.mech.cat.cos(state0=base_state, temp1=hypo.temp, weight1=load.resultant, span=span)
-
                 
                 row["results"].append((state1.tense, state1.tense / self.mech.conductor.rated_strength * 100))
-
 
             tbl.rows.append(row)
 

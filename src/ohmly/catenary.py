@@ -1,22 +1,35 @@
 """
 Module `catenary`
 
-Provides classes and utilities to model overhead conductors as catenaries 
-for mechanical analysis, sag-tension calculations, and load evaluation.
+Provides low-level catenary-based mechanical models for overhead conductors.
+
+This module is responsible for the geometric and physical behavior of a
+conductor modeled as a perfectly flexible catenary under uniform load.
+It is intentionally independent from regulatory assumptions, hypotheses,
+or load-case management.
+
+Higher-level logic such as mechanical zones, hypotheses, and ITC-LAT 07
+compliance is handled in the `mech` module.
 
 Classes:
-    CatenaryState: Represents the mechanical state of a conductor (temperature, tension, weight).
-    CatenaryApparentLoad: Represents the apparent load due to wind and vertical loads, 
-        including resultant magnitude and swing angle.
-    CatenaryModel: Encapsulates the catenary equations and change-of-state calculations 
-        for a conductor.
+    CatenaryState:
+        Represents a mechanical state of the conductor, defined by
+        temperature, horizontal tension, and apparent weight per unit length.
 
-Functions:
-    (Uses `find_root` from .utils for numerical root-finding in change-of-state calculations.)
+    CatenaryApparentLoad:
+        Represents the combined apparent load acting on the conductor due
+        to wind and vertical loads (bare weight + ice).
+
+    CatenaryModel:
+        Encapsulates catenary equations, including:
+        - Change-of-state (COS) calculations
+        - Mid-span sag computation for a given mechanical state and span
 
 Notes:
-    - Swing angle is the angle between the resultant conductor load vector and vertical.
-    - Tension and weight are expressed in daN and daN/m respectively.
+    - Tension is expressed as horizontal tension (daN).
+    - Loads and weights are expressed in daN/m.
+    - Sag is computed at mid-span using the exact catenary equation
+      (not a parabolic approximation).
 """
 
 
@@ -48,15 +61,15 @@ class CatenaryApparentLoad:
 
     Attributes:
         wind_load: Horizontal load component from wind (daN/m).
-        permanent_load: Vertical load component (bare + ice) (daN/m).
+        vertical_load: Vertical load component (bare + ice) (daN/m).
     """
     wind_load: float
-    permanent_load: float
+    vertical_load: float
 
     @property
     def resultant(self):
         """Returns the magnitude of resultant load vector."""
-        return math.sqrt(self.wind_load ** 2 + self.permanent_load **2)
+        return math.sqrt(self.wind_load ** 2 + self.vertical_load **2)
 
     @property
     def swing_angle(self):
@@ -65,11 +78,11 @@ class CatenaryApparentLoad:
         Swing angle is the angle formed between the conductor’s resultant load
         vector and the vertical direction.
         """
-        return math.atan2(self.wind_load, self.permanent_load)
+        return math.atan2(self.wind_load, self.vertical_load)
 
     def __str__(self):
         """Return a readable string representation of the load."""
-        return f"CatenaryApparentLoad(wind_load={self.wind_load}, permanent_load={self.permanent_load}) daN/m"
+        return f"CatenaryApparentLoad(wind_load={self.wind_load}, vertical_load={self.vertical_load}) daN/m"
 
     
 class CatenaryModel:
@@ -122,17 +135,25 @@ class CatenaryModel:
         tense1 = find_root(coseq, cos_prime, state0.tense)
         return CatenaryState(temp=temp1, weight=weight1, tense=tense1)
 
-    # TODO
-    #def sag(self, tense, weight, suspan: SuspensionSpan):
-    def sag(self):
-        raise NotImplementedError("Not implemented yet")
-        a = tense / weight
-        suspan.start = - (suspan.length / 2 - a * suspan.inclination / suspan.length)
-        assert suspan.start is not None
-        suspan.end = suspan.length + suspan.start
-        assert suspan.end is not None
+    def sag(self, state: CatenaryState, span: float):
+        """Compute the mid-span sag using the catenary equation.
 
-        suspan.sag = a * math.cosh((suspan.start + suspan.end) / (2 * a)) * (math.cosh(suspan.length / (2 * a)) - 1)
-        return suspan.sag
+        Calculates the vertical sag at mid-span for a conductor modeled as a
+        perfectly flexible catenary under uniform apparent load. The sag is
+        computed from the horizontal tension and apparent weight per unit length
+        stored in the given mechanical state.
+
+        Args:
+            state (CatenaryState): Mechanical state of the catenary, containing:
+                - temperature of the catenary
+                - horizontal tension (daN)
+                - apparent weight per unit length (daN/m)
+            span (float): Span length between supports (m).
+
+        Returns:
+            float: Mid-span sag of the conductor (m).
+        """
+        catparam = state.tense / state.weight
+        return catparam * (math.cosh(span / (2 * catparam)) - 1)
 
 
