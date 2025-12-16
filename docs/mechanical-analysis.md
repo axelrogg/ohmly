@@ -198,11 +198,11 @@ whether ice loads must be considered and their severity.
 
 Ohmly models these zones using the `MechAnalysisZone` enum:
 
-| Zone    |       Description      | Ice considered |
+| Zone    | Description            | Ice considered |
 |-------- | ---------------------- | -------------- |
-|    A    |       Below 500 m      |       No       |
+|    A    | Below 500 m            | No             |
 |    B    | Between 500 and 1000 m | Yes (moderate) |
-|    C    |       Above 1000 m     | Yes (severe)   |
+|    C    | Above 1000 m           | Yes (severe)   |
 
 The selected zone directly afflects:
 
@@ -380,4 +380,173 @@ given hypothesis is.
 ```python
 factor = mech.overload_factor(load)
 ```
+
+## Sag-Tension Analysis
+
+Sag-tension analysis evaluates how conductor tension and sag evolve under
+different operating and environmental conditions, while ensuring that allowable
+stress limits are not exceeded.
+
+This is done by defining a set of hypotheses (load scenarios), and verifying
+that one of them can act as a controlling hypothesis for all others.
+
+Ohmly follows this methodology explicitly.
+
+### Defining Mechanical Hypotheses
+
+A mechanical hypothesis represents a single operating scenario defined by
+
+-   conductor temperature,
+-   fraction of rated tensile strength (RTS),
+-   wind speed,
+-   presence or absence of ice.
+
+In Ohmly, hypotheses are represented by the `MechAnalysisHypothesis` class.
+
+#### Hypothesis parameters
+
+Each hypothesis is defined using the following parameters:
+
+| Parameter  | Meaning                                               |
+| ---------- | ----------------------------------------------------- |
+| temp       | Conductor temperature (ºC)                            |
+| rts_factor | Fraction of rated tensile strength (e.g. 0.15 = 15 %) |
+| wind_speed | Wind speed in km/h                                    |
+| with_ice   | Whether ice is present                                |
+| name       | Optional descriptive label                            |
+
+> [!Important]
+> The allowable tension for a hypothesis is always `rts_factor x rated_strength`.
+
+##### Typical ITC-LAT 07 Hypotheses
+
+A typical set of hypotheses includes:
+
+-   Every-Day Stress (EDS)
+-   Maximum wind
+-   Wind + ice
+-   Minimum temperature or CHS (Cold-Hour Stress)
+
+Below is an example hypothesis set consistent with common practice.
+
+```python
+from ohmly import MechAnalysisHypothesis
+
+hypos = [
+    MechAnalysisHypothesis(
+        name="EDS",
+        temp=15,
+        rts_factor=0.15,
+        wind_speed=0,
+        with_ice=False,
+    ),
+    MechAnalysisHypothesis(
+        name="Max wind",
+        temp=15,
+        rts_factor=0.30,
+        wind_speed=120,
+        with_ice=False,
+    ),
+    MechAnalysisHypothesis(
+        name="Wind + ice",
+        temp=0,
+        rts_factor=0.30,
+        wind_speed=90,
+        with_ice=True,
+    ),
+    MechAnalysisHypothesis(
+        name="Cold hour",
+        temp=-5,
+        rts_factor=0.35,
+        wind_speed=0,
+        with_ice=False,
+    ),
+]
+```
+
+> [!Note]
+> The exact values (RTS limits, temperatures, wind speeds) must always be chosen
+> according to the applicable project specification and regulatory
+> interpretation.
+> 
+> Ohmly does **not** impose defaults.
+
+#### Controlling Hypothesis Concept
+
+Not every hypothesis can be used as the reference state for sag-tension
+calculations.
+
+A **controlling hypothesis** is defined as one that:
+-   satisfies its own allowable tension, and
+-   when used as a base state, does not cause any other hypothesis to exceed
+    its allowable tension after state change.
+
+Ohmly determines the controlling hypothesis automatically.
+
+If not such hypothesis exists, the configuration is considered invalid.
+
+### Sag-Tension Table Calculation
+
+Once
+
+-   a conductor is defined,
+-   a mechanical analysis zone is selected, and
+-   a set of hypotheses is specified,
+
+a sag-tension table can be computed for one or more spans.
+
+#### Example: Full Sag-Tension calculation
+
+```python
+from ohmly import MechAnalysis, MechAnalysisZone
+
+mech = MechAnalysis(
+    conductor=conductor,
+    zone=MechAnalysisZone.B,
+)
+
+spans = [200, 250, 300]
+
+table = mech.stt(
+    hypos=hypos,
+    spans=spans,
+)
+
+print(table)
+```
+
+If a controlling hypothesis exists, a formatted sag-tension table is returned.
+
+Each cell contains:
+
+-   conductor tension (daN),
+-   corresponding percentage of rated strength.
+
+If **no controlling hypothesis** is found, `None` is returned.
+
+> [!Warning]
+> A missing controlling hypothesis indicates that the conductor or hypothesis
+> set violates regulatory stress limits. This is not a numerical issue--it is a
+> design failure.
+
+### How Ohmly Performs Sag-Tension Calculations
+
+Internally, Ohmly follows this procedure:
+
+1.  Sort hypotheses by temperature.
+2.  Tentatively assume one hypothesis as the base state.
+3.  Apply change-of-state equations to all other hypotheses.
+4.  Check allowable tension limits for every case.
+5.  Accept the first hypothesis that satisfies all constraints.
+
+This process is fully deterministic and traceable.
+
+### Interpreting Results
+
+A sag-tension table allows you to
+
+-   verify regulatory compliance,
+-   identify the most demanding load cases,
+-   compare tensions across spans,
+-   feed downstream checks (clearances, support reactions, hardware sizing).
 
