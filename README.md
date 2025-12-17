@@ -56,7 +56,7 @@ The docs cover:
 - Sag–tension tables and controlling hypotheses
 
 📘 **Read the full documentation here:**  
-https://github.com/axelrogg/ohmly/tree/main/docs
+https://ohmly.readthedocs.io/en/stable/
 
 
 ## Installation
