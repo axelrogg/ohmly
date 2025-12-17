@@ -11,15 +11,18 @@ It focuses on the core mechanical problems engineers actually solve:
 - Temperature-dependent behavior
 - Regulation-aware safeguards
 
-> ⚠️ Ohmly is an engineering aid, not a replacement for professional judgment.
-> See the Disclaimer section for details.
 
----
+!!! Important
+    Ohmly is an engineering aid, not a replacement for professional judgment.
+    See the Disclaimer section for details.
+
 
 ## Quick example
+
 
 ```python
 from ohmly import ConductorRepository, MechAnalysis, MechAnalysisZone
 
 conductor = ConductorRepository().get(legacy_code="LA 180")
 mech = MechAnalysis(conductor, zone=MechAnalysisZone.A)
+```

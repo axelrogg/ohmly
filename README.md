@@ -30,7 +30,7 @@ Ohmly is an MIT-licensed engineering support tool.
 Mechanical calculations currently follow Spanish ITC-LAT 07 only and must be
 validated by a qualified engineer.
 
-See `docs/DISCLAIMER.md` for full details.
+See [DISCLAIMER.md](docs/DISCLAIMER.md) for full details.
 
 
 ## Why Use Ohmly?

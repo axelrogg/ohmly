@@ -1,7 +1,7 @@
 site_name: Ohmly Documentation
 site_description: Mechanical analysis of overhead conductors (ITC-LAT 07)
 site_author: Axel
-repo_url: https://github.com/youruser/ohmly
+repo_url: https://github.com/axelrogg/ohmly
 repo_name: ohmly
 
 theme:
@@ -22,5 +22,8 @@ markdown_extensions:
 
 nav:
   - Home: index.md
+  - Disclaimer: DISCLAIMER.md
   - Mechanical Analysis:
       - Overview: mechanical-analysis.md
+  - Examples:
+      - Sag–Tension (Basic): examples/sag_tension_basic.md

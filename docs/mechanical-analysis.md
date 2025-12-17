@@ -2,6 +2,9 @@
 
 ## Specifying General Line Characteristics
 
+!!! Danger
+    To be implemented.
+
 ## Specifying Conductor Details
 
 Mechanical analysis in Ohmly is always performed on a specific conductor model.
@@ -16,10 +19,10 @@ these properties manually in most cases.
 The internal database currently includes a subset of standard conductors defined
 in UNE-EN 50182:2002, primarily from Table F.30 (AL1/ST1A).
 
-> [!Important]
-> The database is still growing. At the moment, only a limited number of
-> conductors are available. Future releases will expand coverage and may include
-> additional conductor families.
+!!! Important
+    The database is still growing. At the moment, only a limited number of
+    conductors are available. Future releases will expand coverage and may include
+    additional conductor families.
 
 Each conductor can be identified using:
 -   its official designation (UNE format), or
@@ -102,9 +105,9 @@ This allows you to:
 -   include additional fittings or coatings, and
 -   adapt the model to project-specific assumptions
 
-> [!NOTE]
-> Changes only affect the current conductor instance and do not modify the
-> internal database.
+!!! Note
+    Changes only affect the current conductor instance and do not modify the
+    internal database.
 
 ### Defining a Conductor Manually
 
@@ -166,9 +169,9 @@ The following will be printed in your terminal.
   unit_weight           daN/m            1.0003
 ```
 
-> [!Note]
-> All units MUST follow the same conventions as database-loaded conductors,
-> since all Ohmly's functions assume these units.
+!!! Note
+    All units MUST follow the same conventions as database-loaded conductors,
+    since all Ohmly's functions assume these units.
 
 Once created, a manually defined conductor is indistinguishable from one loaded
 from the database and can bE used in all mechanical analyses.
@@ -310,9 +313,9 @@ In Ohmly, ice load is computed automatically based on the analysis zone:
 -   **Zone B**: moderate ice load
 -   **Zone C**: heavy ice load
 
-> [!Note]
-> Attempting to compute ice load in Zone A will raise an error, as ice is not
-> defined in that zone by the regulation.
+!!! Note
+    Attempting to compute ice load in Zone A will raise an error, as ice is not
+    defined in that zone by the regulation.
 
 ### Wind Load
 
@@ -415,8 +418,8 @@ Each hypothesis is defined using the following parameters:
 | with_ice   | Whether ice is present                                |
 | name       | Optional descriptive label                            |
 
-> [!Important]
-> The allowable tension for a hypothesis is always `rts_factor x rated_strength`.
+!!! Important
+    The allowable tension for a hypothesis is always `rts_factor x rated_strength`.
 
 ##### Typical ITC-LAT 07 Hypotheses
 
@@ -464,12 +467,12 @@ hypos = [
 ]
 ```
 
-> [!Note]
-> The exact values (RTS limits, temperatures, wind speeds) must always be chosen
-> according to the applicable project specification and regulatory
-> interpretation.
-> 
-> Ohmly does **not** impose defaults.
+!!! Note
+    The exact values (RTS limits, temperatures, wind speeds) must always be chosen
+    according to the applicable project specification and regulatory
+    interpretation.
+    
+    Ohmly does **not** impose defaults.
 
 #### Controlling Hypothesis Concept
 
@@ -524,10 +527,10 @@ Each cell contains:
 
 If **no controlling hypothesis** is found, `None` is returned.
 
-> [!Warning]
-> A missing controlling hypothesis indicates that the conductor or hypothesis
-> set violates regulatory stress limits. This is not a numerical issue--it is a
-> design failure.
+!!! Warning
+    A missing controlling hypothesis indicates that the conductor or hypothesis
+    set violates regulatory stress limits. This is not a numerical issue--it is a
+    design failure.
 
 ### How Ohmly Performs Sag-Tension Calculations
 
