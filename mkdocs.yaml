@@ -1,0 +1,26 @@
+site_name: Ohmly Documentation
+site_description: Mechanical analysis of overhead conductors (ITC-LAT 07)
+site_author: Axel
+repo_url: https://github.com/youruser/ohmly
+repo_name: ohmly
+
+theme:
+  name: material
+  language: en
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - content.code.copy
+
+markdown_extensions:
+  - admonition
+  - pymdownx.superfences
+  - pymdownx.details
+  - pymdownx.highlight
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Mechanical Analysis:
+      - Overview: mechanical-analysis.md
